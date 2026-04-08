@@ -1,0 +1,5 @@
+{
+  "name": "SpendWise Mobile",
+  "description": "A sleek, mobile-first expense and income tracker with multi-account support and local persistence.",
+  "requestFramePermissions": []
+}
