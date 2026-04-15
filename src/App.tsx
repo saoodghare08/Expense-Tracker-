@@ -48,7 +48,21 @@ export default function App() {
 
   useEffect(() => {
     loadData();
+    const savedFilters = storage.getFilters();
+    if (savedFilters) {
+      setFilterCategory(savedFilters.category);
+      setFilterStartDate(savedFilters.startDate);
+      setFilterEndDate(savedFilters.endDate);
+    }
   }, []);
+
+  useEffect(() => {
+    storage.saveFilters({
+      category: filterCategory,
+      startDate: filterStartDate,
+      endDate: filterEndDate
+    });
+  }, [filterCategory, filterStartDate, filterEndDate]);
 
   const loadData = () => {
     const loadedAccounts = storage.getAccounts();
@@ -64,19 +78,27 @@ export default function App() {
     return accounts.reduce((sum, acc) => sum + acc.balance, 0);
   }, [accounts]);
 
-  const monthlyStats = useMemo(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    return transactions.reduce((stats, t) => {
-      const tDate = new Date(t.date);
-      if (tDate >= startOfMonth) {
-        if (t.type === 'income') stats.income += t.amount;
-        else stats.expense += t.amount;
-      }
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const isWithinDate = t.date >= filterStartDate && t.date <= filterEndDate;
+      const isCategoryMatch = filterCategory === 'all' || t.category === filterCategory;
+      return isWithinDate && isCategoryMatch;
+    });
+  }, [transactions, filterStartDate, filterEndDate, filterCategory]);
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    Object.values(CATEGORIES).forEach(list => list.forEach(c => cats.add(c)));
+    return Array.from(cats);
+  }, []);
+
+  const summaryStats = useMemo(() => {
+    return filteredTransactions.reduce((stats, t) => {
+      if (t.type === 'income') stats.income += t.amount;
+      else stats.expense += t.amount;
       return stats;
     }, { income: 0, expense: 0 });
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   const handleAddTransaction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,24 +215,10 @@ export default function App() {
     }
   };
 
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
-      const isWithinDate = t.date >= filterStartDate && t.date <= filterEndDate;
-      const isCategoryMatch = filterCategory === 'all' || t.category === filterCategory;
-      return isWithinDate && isCategoryMatch;
-    });
-  }, [transactions, filterStartDate, filterEndDate, filterCategory]);
-
-  const allCategories = useMemo(() => {
-    const cats = new Set<string>();
-    Object.values(CATEGORIES).forEach(list => list.forEach(c => cats.add(c)));
-    return Array.from(cats);
-  }, []);
-
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans text-zinc-900 pb-24">
+    <div className="min-h-dvh bg-zinc-50 font-sans text-zinc-900 pb-24">
       {/* Header */}
-      <header className="bg-white border-b border-zinc-200 px-6 pt-8 pb-6 sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-zinc-200 px-6 pt-8 pb-6 sticky top-0 z-20 shadow-sm">
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">Total Balance</h1>
           <Badge variant="outline" className="font-mono text-[10px] uppercase">SpendWise</Badge>
@@ -221,7 +229,7 @@ export default function App() {
       </header>
 
       <main className="px-4 py-6 space-y-8">
-        {/* Monthly Summary */}
+        {/* Filtered Summary */}
         <div className="grid grid-cols-2 gap-4 px-2">
           <div className="bg-emerald-500 p-4 rounded-3xl text-white shadow-lg shadow-emerald-100">
             <div className="flex items-center gap-2 mb-1 opacity-80">
@@ -229,7 +237,7 @@ export default function App() {
               <span className="text-[10px] font-bold uppercase tracking-wider">Income</span>
             </div>
             <div className="text-xl font-bold">
-              ${monthlyStats.income.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              ${summaryStats.income.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </div>
           </div>
           <div className="bg-rose-500 p-4 rounded-3xl text-white shadow-lg shadow-rose-100">
@@ -238,7 +246,7 @@ export default function App() {
               <span className="text-[10px] font-bold uppercase tracking-wider">Expense</span>
             </div>
             <div className="text-xl font-bold">
-              ${monthlyStats.expense.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              ${summaryStats.expense.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </div>
           </div>
         </div>

@@ -3,6 +3,13 @@ import { Account, Transaction } from '../types';
 
 const ACCOUNTS_KEY = 'spendwise_accounts';
 const TRANSACTIONS_KEY = 'spendwise_transactions';
+const FILTERS_KEY = 'spendwise_filters';
+
+export interface FilterSettings {
+  category: string;
+  startDate: string;
+  endDate: string;
+}
 
 export const storage = {
   getAccounts: (): Account[] => {
@@ -33,6 +40,15 @@ export const storage = {
 
   saveTransactions: (transactions: Transaction[]) => {
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+  },
+
+  getFilters: (): FilterSettings | null => {
+    const data = localStorage.getItem(FILTERS_KEY);
+    return data ? JSON.parse(data) : null;
+  },
+
+  saveFilters: (filters: FilterSettings) => {
+    localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
   },
 
   addTransaction: (transaction: Transaction) => {
