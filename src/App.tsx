@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, History, CreditCard, Banknote, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, History, CreditCard, Banknote, MoreHorizontal, Pencil, Trash2, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,12 @@ export default function App() {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [isConfirmingAccountDelete, setIsConfirmingAccountDelete] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Filter states
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStartDate, setFilterStartDate] = useState(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
+  const [filterEndDate, setFilterEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   // Form states
   const [amount, setAmount] = useState('');
@@ -187,6 +193,20 @@ export default function App() {
     }
   };
 
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const isWithinDate = t.date >= filterStartDate && t.date <= filterEndDate;
+      const isCategoryMatch = filterCategory === 'all' || t.category === filterCategory;
+      return isWithinDate && isCategoryMatch;
+    });
+  }, [transactions, filterStartDate, filterEndDate, filterCategory]);
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    Object.values(CATEGORIES).forEach(list => list.forEach(c => cats.add(c)));
+    return Array.from(cats);
+  }, []);
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans text-zinc-900 pb-24">
       {/* Header */}
@@ -346,16 +366,84 @@ export default function App() {
             <h2 className="text-sm font-bold flex items-center gap-2">
               <History className="w-4 h-4" /> Recent Activity
             </h2>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-8 px-2 text-xs ${isFilterOpen || filterCategory !== 'all' ? 'text-emerald-600 bg-emerald-50' : ''}`}
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              <Filter className="w-3 h-3 mr-1" /> Filter
+            </Button>
           </div>
 
+          <AnimatePresence>
+            {isFilterOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mb-4 px-2"
+              >
+                <div className="bg-white p-4 rounded-2xl border border-zinc-100 shadow-sm space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase text-zinc-400">Start Date</Label>
+                      <Input 
+                        type="date" 
+                        value={filterStartDate} 
+                        onChange={e => setFilterStartDate(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase text-zinc-400">End Date</Label>
+                      <Input 
+                        type="date" 
+                        value={filterEndDate} 
+                        onChange={e => setFilterEndDate(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase text-zinc-400">Category</Label>
+                    <Select value={filterCategory} onValueChange={setFilterCategory}>
+                      <SelectTrigger className="h-9 text-xs w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {allCategories.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full h-8 text-[10px] uppercase text-zinc-400"
+                    onClick={() => {
+                      setFilterCategory('all');
+                      setFilterStartDate(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
+                      setFilterEndDate(format(new Date(), 'yyyy-MM-dd'));
+                    }}
+                  >
+                    Reset Filters
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="space-y-3">
-            {transactions.length === 0 ? (
+            {filteredTransactions.length === 0 ? (
               <div className="text-center py-12 text-zinc-400">
-                <p className="text-sm">No transactions yet.</p>
-                <p className="text-xs">Tap the + button to add one.</p>
+                <p className="text-sm">No transactions found.</p>
+                <p className="text-xs">Adjust filters or tap the + button.</p>
               </div>
             ) : (
-              transactions.map(t => (
+              filteredTransactions.map(t => (
                 <motion.div
                   key={t.id}
                   initial={{ opacity: 0, y: 10 }}
